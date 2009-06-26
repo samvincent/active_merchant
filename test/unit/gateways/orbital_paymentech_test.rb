@@ -1,8 +1,6 @@
 require 'test/helper'
 
 class OrbitalGatewayTest < Test::Unit::TestCase
-  # Run test suite with certification credentials
-  @@production
   def setup
     @gateway = OrbitalGateway.new(
       :login => 'login',
@@ -30,6 +28,16 @@ class OrbitalGatewayTest < Test::Unit::TestCase
   def test_unauthenticated_response
   end
   
+  private
+  
+  # Place raw successful response from gateway here
+  def successful_purchase_response
+  end
+  
+  # Place raw failed response from gateway here
+  def failed_purcahse_response
+  end
+
   
   def auth_responses
     [{:amount => "1.00", :auth_response => "00", :response => "Approved"},

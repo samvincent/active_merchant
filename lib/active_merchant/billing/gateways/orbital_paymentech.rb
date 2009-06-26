@@ -1,3 +1,5 @@
+require "rexml/document"
+
 module ActiveMerchant #:nodoc:
   module Billing #:nodoc:
     # For more information on Orbital, visit the {integration center}[http://download.chasepaymentech.com]
@@ -34,7 +36,9 @@ module ActiveMerchant #:nodoc:
       # self.live_url_secondary = "orbital2.paymentech.net/authorize"
       
       self.supported_countries = ["US", "CA"]
+      self.default_currency = "CA"
       self.supported_cardtypes = [:visa, :master, :american_express, :discover, :diners_club, :jcb]
+      
       self.display_name = 'Orbital Paymentech'
       self.homepage = 'http://chasepaymentech.com/'
       
@@ -47,50 +51,68 @@ module ActiveMerchant #:nodoc:
         end
         super
       end
-            
+      
+      # Message Type
+      # A – Authorization request
       def authorize(money, creditcard, options = {})
-        post = {}
-        add_invoice(post, options)
-        add_creditcard(post, creditcard)        
-        add_address(post, creditcard, options)        
-        add_customer_data(post, options)
-        
-        commit('A', money, post)
+        order = build_new_order('A', money) do |xml|
+          add_invoice(xml, options)
+          add_creditcard(xml, creditcard)        
+          add_address(xml, creditcard, options)   
+          add_customer_data(xml, options)
+        end
+        commit(order)
       end
       
+      # Message Type
+      # AC – Authorization and Mark for Capture
       def purchase(money, creditcard, options = {})
-        post = {}
-        add_invoice(post, options)
-        add_creditcard(post, creditcard)        
-        add_address(post, creditcard, options)   
-        add_customer_data(post, options)
-             
-        commit('AC', money, post)
+        order = build_new_order('AC', money) do |xml|
+          add_invoice(xml, options)
+          add_creditcard(xml, creditcard)        
+          add_address(xml, creditcard, options)   
+          add_customer_data(xml, options)
+        end
+        commit(order)
       end                       
-    
+      
+      
+      # Message Type
+      # FC – Force-Capture request
       def capture(money, authorization, options = {})
         commit('FC', money, post)
       end
       
+      # Message Type
+      # R – Refund request
       def refund(money, authorization, options ={})
         commit('R', money, post)
       end
     
       private                       
-      
-      def add_customer_data(post, options)
+            
+      def add_customer_data(xml, options)
         
       end
 
-      def add_address(post, creditcard, options)      
-        
+      def add_address(xml, creditcard, options)      
+        xml.tag! :AVSaddress1
+        xml.tag! :AVSaddress2
+        xml.tag! :AVScity
+        xml.tag! :AVSstate
+        xml.tag! :AVSzip
+        xml.tag! :AVSphoneNum
       end
 
-      def add_invoice(post, options)
+      def add_invoice(xml, options)
         
       end
       
-      def add_creditcard(post, creditcard)      
+      def add_creditcard(xml, creditcard)      
+        xml.tag! :Exp, creditcard.expiry_date
+        xml.tag! :CardSecVal,  creditcard.verification_value if creditcard.requires_verification_value?
+        xml.tag! :CurrencyCode, Country.find([parameters[:currency]).code(:numeric).to_s
+        xml.tag! :CurrencyExponent, '2' # Will need updating to support currencies such as the Yen.
       end
       
       def parse(body)
@@ -102,7 +124,7 @@ module ActiveMerchant #:nodoc:
       def message_from(response)
       end
       
-      def post_data(action, parameters = {})
+      def build_new_order(action, parameters = {})
         xml = Builder::XmlMarkup.new(:indent => 2)
         xml.instruct!(:xml, :version => '1.1', :encoding => 'utf-8')
         xml.tag! :request do
@@ -114,15 +136,18 @@ module ActiveMerchant #:nodoc:
             xml.tag! :BIN, '000002' # PNS, Salem is '000001'
             xml.tag! :MerchantID, paramaters[:merchant_id]
             xml.tag! :AccountNum, parameters[:number]
-            xml.tag! :Exp, parameters[:month] + parameters[:year]
-            xml.tag! :CurrencyCode, Country.find([parameters[:currency]).code(:numeric).to_s
-            xml.tag! :CurrencyExponent, '2'
-            xml.tag! :AVSzip, parameters[:zipcode]
-            xml.tag! :Comments, parameter[:transaction_id]
-            # xml.tag! parameters[:verification_value]
+            
+            yield xml
+            
+            xml.tag! :Comments, parameters[:comments] if parameters[:comments]
+            xml.tag! :OrderID
+            
+            xml.tag! :Amount
           end
         end
+        xml.target!
       end
+      
     end
   end
 end

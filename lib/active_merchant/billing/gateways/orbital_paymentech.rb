@@ -101,13 +101,13 @@ module ActiveMerchant #:nodoc:
         end
       end
       
-      def add_soft_descriptors(xml, options)
-        xml.tag! :SDMerchantName, options[:SDMerchantName]
-        xml.tag! :SDProductDescription, options
-        xml.tag! :SDMerchantCity, options
-        xml.tag! :SDMerchantPhone, options
-        xml.tag! :SDMerchantURL, options
-        xml.tag! :SDMerchantEmail, options
+      def add_soft_descriptors(xml, soft_desc)
+        xml.tag! :SDMerchantName, soft_desc.merchant_name
+        xml.tag! :SDProductDescription, soft_desc.product_description
+        xml.tag! :SDMerchantCity, soft_desc.merchant_city
+        xml.tag! :SDMerchantPhone, soft_desc.merchant_phone
+        xml.tag! :SDMerchantURL, soft_desc.merchant_url
+        xml.tag! :SDMerchantEmail, soft_desc.merchant_email
         
       end
 

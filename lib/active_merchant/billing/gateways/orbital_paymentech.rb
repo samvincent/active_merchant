@@ -1,3 +1,4 @@
+require File.dirname(__FILE__) + '/orbital_paymentech/soft_descriptors.rb'
 require "rexml/document"
 
 module ActiveMerchant #:nodoc:
@@ -44,7 +45,7 @@ module ActiveMerchant #:nodoc:
       
       self.money_format = :cents
             
-      def initialize(options = {:currency => 'CA', :terminal_id => '001'})
+      def initialize(options = {})
         unless options[:ip_authentication] == true
           requires!(options, :login, :password, :merchant_id)
           @options = options
@@ -55,7 +56,7 @@ module ActiveMerchant #:nodoc:
       # Message Type
       # A – Authorization request
       def authorize(money, creditcard, options = {})
-        order = build_new_order('A', money) do |xml|
+        order = build_new_order_xml('A', money) do |xml|
           add_invoice(xml, options)
           add_creditcard(xml, creditcard)        
           add_address(xml, creditcard, options)   
@@ -67,7 +68,7 @@ module ActiveMerchant #:nodoc:
       # Message Type
       # AC – Authorization and Mark for Capture
       def purchase(money, creditcard, options = {})
-        order = build_new_order('AC', money) do |xml|
+        order = build_new_order_xml('AC', money) do |xml|
           add_invoice(xml, options)
           add_creditcard(xml, creditcard)        
           add_address(xml, creditcard, options)   
@@ -92,16 +93,35 @@ module ActiveMerchant #:nodoc:
       private                       
             
       def add_customer_data(xml, options)
+        if options[:customer_ref_num]
+          xml.tag! :CustomerProfileFromOrderInd, 'S'
+          xml.tag! :CustomerRefNum, options[:customer_ref_num]
+        else
+          xml.tag! :CustomerProfileFromOrderInd, 'A'
+        end
+      end
+      
+      def add_soft_descriptors(xml, options)
+        xml.tag! :SDMerchantName, options[:SDMerchantName]
+        xml.tag! :SDProductDescription, options
+        xml.tag! :SDMerchantCity, options
+        xml.tag! :SDMerchantPhone, options
+        xml.tag! :SDMerchantURL, options
+        xml.tag! :SDMerchantEmail, options
         
       end
 
       def add_address(xml, creditcard, options)      
-        xml.tag! :AVSaddress1
-        xml.tag! :AVSaddress2
-        xml.tag! :AVScity
-        xml.tag! :AVSstate
-        xml.tag! :AVSzip
-        xml.tag! :AVSphoneNum
+        if address = options[:billing_address] || options[:address]
+          xml.tag! :AVSname, creditcard.name
+          xml.tag! :AVSaddress1, options[:address1]
+          xml.tag! :AVSaddress2, options[:address2]
+          xml.tag! :AVScity, options[:city]
+          xml.tag! :AVSstate, options[:state]
+          xml.tag! :AVSzip, options[:zip]
+          xml.tag! :AVScountryCode, options[:country]
+          xml.tag! :AVSphoneNum, options[:phone]
+        end
       end
 
       def add_invoice(xml, options)
@@ -109,6 +129,7 @@ module ActiveMerchant #:nodoc:
       end
       
       def add_creditcard(xml, creditcard)      
+        xml.tag! :AccountNum, creditcard.number
         xml.tag! :Exp, creditcard.expiry_date
         xml.tag! :CardSecVal,  creditcard.verification_value if creditcard.requires_verification_value?
         xml.tag! :CurrencyCode, Country.find([parameters[:currency]).code(:numeric).to_s
@@ -118,13 +139,14 @@ module ActiveMerchant #:nodoc:
       def parse(body)
       end     
       
-      def commit(action, money, parameters)
+      def commit(order)
+        response = parse(ssl_post)
       end
 
       def message_from(response)
       end
       
-      def build_new_order(action, parameters = {})
+      def build_new_order_xml(action, parameters = {})
         xml = Builder::XmlMarkup.new(:indent => 2)
         xml.instruct!(:xml, :version => '1.1', :encoding => 'utf-8')
         xml.tag! :request do
@@ -135,12 +157,12 @@ module ActiveMerchant #:nodoc:
             xml.tag! :MessageType, action
             xml.tag! :BIN, '000002' # PNS, Salem is '000001'
             xml.tag! :MerchantID, paramaters[:merchant_id]
-            xml.tag! :AccountNum, parameters[:number]
+            xml.tag! :TerminalID, parameters[:terminal_id] || '001'
             
             yield xml
             
             xml.tag! :Comments, parameters[:comments] if parameters[:comments]
-            xml.tag! :OrderID
+            xml.tag! :OrderID, parameters[:order_id]
             
             xml.tag! :Amount
           end

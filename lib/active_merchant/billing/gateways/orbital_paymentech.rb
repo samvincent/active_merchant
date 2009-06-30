@@ -43,7 +43,7 @@ module ActiveMerchant #:nodoc:
       self.supported_cardtypes = [:visa, :master, :american_express, :discover, :diners_club, :jcb]
       
       self.display_name = 'Orbital Paymentech'
-      self.homepage = 'http://chasepaymentech.com/'
+      self.homepage_url = 'http://chasepaymentech.com/'
       
       self.money_format = :cents
             

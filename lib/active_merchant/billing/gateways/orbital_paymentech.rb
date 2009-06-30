@@ -132,7 +132,7 @@ module ActiveMerchant #:nodoc:
         xml.tag! :AccountNum, creditcard.number
         xml.tag! :Exp, creditcard.expiry_date
         xml.tag! :CardSecVal,  creditcard.verification_value if creditcard.requires_verification_value?
-        xml.tag! :CurrencyCode, Country.find([parameters[:currency]).code(:numeric).to_s
+        xml.tag! :CurrencyCode, Country.find(parameters[:currency]).code(:numeric).to_s
         xml.tag! :CurrencyExponent, '2' # Will need updating to support currencies such as the Yen.
       end
       

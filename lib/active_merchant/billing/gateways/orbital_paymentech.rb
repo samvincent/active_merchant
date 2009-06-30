@@ -30,11 +30,13 @@ module ActiveMerchant #:nodoc:
     class OrbitalGateway < Gateway
       API_VERSION = "4.6"
       
-      self.test_url = "orbitalvar1.paymentech.net/authorize"
-      # self.test_url_secondary = "orbitalvar2.paymentech.net/authorize"
+      class_inheritable_accessor :primary_test_url, :secondary_test_url, :primary_live_url, :secondary_live_url
       
-      self.live_url = "orbital1.paymentech.net/authorize"
-      # self.live_url_secondary = "orbital2.paymentech.net/authorize"
+      self.primary_test_url = "orbitalvar1.paymentech.net/authorize"
+      self.secondary_test_url = "orbitalvar2.paymentech.net/authorize"
+      
+      self.primary_live_url = "orbital1.paymentech.net/authorize"
+      self.secondary_live_url = "orbital2.paymentech.net/authorize"
       
       self.supported_countries = ["US", "CA"]
       self.default_currency = "CA"

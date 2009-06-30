@@ -1,4 +1,4 @@
-require File.dirname(__FILE__) + '/orbital_paymentech/soft_descriptors.rb'
+require File.dirname(__FILE__) + '/orbital_paymentech/orbital_soft_descriptors.rb'
 require "rexml/document"
 
 module ActiveMerchant #:nodoc:

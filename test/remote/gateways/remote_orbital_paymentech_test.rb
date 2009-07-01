@@ -1,9 +1,8 @@
-require 'test_helper'
+require "#{File.dirname(__FILE__)}/../../test_helper.rb"
 
 class RemoteOrbitalGatewayTest < Test::Unit::TestCase
-  
-
   def setup
+    Base.mode = :test
     @gateway = OrbitalGateway.new(fixtures(:orbital_gateway))
     
     @amount = 100
@@ -13,7 +12,6 @@ class RemoteOrbitalGatewayTest < Test::Unit::TestCase
     @options = { 
       :order_id => '1',
       :billing_address => address,
-      :description => 'Store Purchase'
     }
   end
   
@@ -46,7 +44,7 @@ class RemoteOrbitalGatewayTest < Test::Unit::TestCase
   end
 
   def test_invalid_login
-    gateway = <%= class_name %>Gateway.new(
+    gateway = OrbitalGateway.new(
                 :login => '',
                 :password => ''
               )

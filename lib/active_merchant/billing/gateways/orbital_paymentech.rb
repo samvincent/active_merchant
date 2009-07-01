@@ -30,10 +30,19 @@ module ActiveMerchant #:nodoc:
     class OrbitalGateway < Gateway
       API_VERSION = "4.6"
       
+      POST_HEADERS = {
+        "MIME-Version" => "1.0",
+        "Content-Type" => "application/PTI45",
+        "Content-transfer-encoding" => "text",
+        "Request-number" => '1',
+        "Document-type" => "Request",
+        "Interface-Version" => API_VERSION,
+      }
+      
       class_inheritable_accessor :primary_test_url, :secondary_test_url, :primary_live_url, :secondary_live_url
       
-      self.primary_test_url = "orbitalvar1.paymentech.net/authorize"
-      self.secondary_test_url = "orbitalvar2.paymentech.net/authorize"
+      self.primary_test_url = "https://orbitalvar1.paymentech.net/authorize"
+      self.secondary_test_url = "https://orbitalvar2.paymentech.net/authorize"
       
       self.primary_live_url = "orbital1.paymentech.net/authorize"
       self.secondary_live_url = "orbital2.paymentech.net/authorize"
@@ -70,7 +79,7 @@ module ActiveMerchant #:nodoc:
       # Message Type
       # AC – Authorization and Mark for Capture
       def purchase(money, creditcard, options = {})
-        order = build_new_order_xml('AC', money) do |xml|
+        order = build_new_order_xml('AC', money, options) do |xml|
           add_invoice(xml, options)
           add_creditcard(xml, creditcard)        
           add_address(xml, creditcard, options)   
@@ -132,43 +141,46 @@ module ActiveMerchant #:nodoc:
       
       def add_creditcard(xml, creditcard)      
         xml.tag! :AccountNum, creditcard.number
-        xml.tag! :Exp, creditcard.expiry_date
-        xml.tag! :CardSecVal,  creditcard.verification_value if creditcard.requires_verification_value?
-        xml.tag! :CurrencyCode, Country.find(parameters[:currency]).code(:numeric).to_s
-        xml.tag! :CurrencyExponent, '2' # Will need updating to support currencies such as the Yen.
+        xml.tag! :Exp, creditcard.expiry_date.expiration.strftime("%m%y")
+        xml.tag! :CardSecVal,  creditcard.verification_value if creditcard.verification_value?
       end
       
       def parse(body)
+        puts body.inspect
       end     
       
       def commit(order)
-        response = parse(ssl_post)
+        response = parse(ssl_post(self.primary_test_url, order, POST_HEADERS.merge("Content-Length" => order.bytesize.to_s)))
       end
 
       def message_from(response)
       end
       
-      def build_new_order_xml(action, parameters = {})
+      def build_new_order_xml(action, money, parameters = {})
         xml = Builder::XmlMarkup.new(:indent => 2)
         xml.instruct!(:xml, :version => '1.1', :encoding => 'utf-8')
         xml.tag! :request do
           xml.tag! :new_order do
-            xml.tag! :OrbitalConnectionUsername, paramaters[:login]
-            xml.tag! :OrbitalConnectionPassword, paramaters[:password]
+            xml.tag! :OrbitalConnectionUsername, @options[:login]
+            xml.tag! :OrbitalConnectionPassword, @options[:password]
             xml.tag! :IndustryType, "EC" # eCommerce transaction 
             xml.tag! :MessageType, action
             xml.tag! :BIN, '000002' # PNS, Salem is '000001'
-            xml.tag! :MerchantID, paramaters[:merchant_id]
+            xml.tag! :MerchantID, @options[:merchant_id]
             xml.tag! :TerminalID, parameters[:terminal_id] || '001'
             
             yield xml
             
+            currency = parameters[:currency] || self.default_currency
+            xml.tag! :CurrencyCode, Country.find(currency).code(:numeric).to_s
+            xml.tag! :CurrencyExponent, '2' # Will need updating to support currencies such as the Yen.
+            
             xml.tag! :Comments, parameters[:comments] if parameters[:comments]
             xml.tag! :OrderID, parameters[:order_id]
-            
-            xml.tag! :Amount
+            xml.tag! :Amount, money
           end
         end
+        puts xml.target!
         xml.target!
       end
       

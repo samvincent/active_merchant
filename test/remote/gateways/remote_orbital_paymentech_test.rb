@@ -17,24 +17,24 @@ class RemoteOrbitalGatewayTest < Test::Unit::TestCase
   
   def test_successful_purchase
     assert response = @gateway.purchase(@amount, @credit_card, @options)
-    puts response.success?
-    # assert_success response
-    # assert_equal 'REPLACE WITH SUCCESS MESSAGE', response.message
+    assert_success response
+    assert_equal 'APPROVED', response.message
   end
 
   def test_unsuccessful_purchase
-    assert response = @gateway.purchase(@amount, @declined_card, @options)
+    # Amounts of x.01 will fail
+    assert response = @gateway.purchase(101, @declined_card, @options)
     assert_failure response
-    assert_equal 'REPLACE WITH FAILED PURCHASE MESSAGE', response.message
+    assert_equal 'AUTH DECLINED                   12001', response.message
   end
 
   def test_authorize_and_capture
     amount = @amount
-    assert auth = @gateway.authorize(amount, @credit_card, @options)
+    assert auth = @gateway.authorize(amount, @credit_card, @options.merge(:order_id => '2'))
     assert_success auth
-    assert_equal 'Success', auth.message
+    assert_equal 'APPROVED', auth.message
     assert auth.authorization
-    assert capture = @gateway.capture(amount, auth.authorization)
+    assert capture = @gateway.capture(amount, auth.authorization, :order_id => '2')
     assert_success capture
   end
 

@@ -69,11 +69,10 @@ module ActiveMerchant #:nodoc:
       # Message Type
       # A – Authorization request
       def authorize(money, creditcard, options = {})
-        order = build_new_order_xml('A', money) do |xml|
+        order = build_new_order_xml('A', money, options) do |xml|
           add_invoice(xml, options)
-          add_creditcard(xml, creditcard)        
+          add_creditcard(xml, creditcard, options[:currency])        
           add_address(xml, creditcard, options)   
-          add_customer_data(xml, options)
         end
         commit(order)
       end
@@ -85,16 +84,16 @@ module ActiveMerchant #:nodoc:
           add_invoice(xml, options)
           add_creditcard(xml, creditcard, options[:currency])        
           add_address(xml, creditcard, options)   
-          # add_customer_data(xml, options)
         end
         commit(order)
       end                       
       
       
-      # Message Type
-      # FC – Force-Capture request
+      # MFC - Mark For Capture
       def capture(money, authorization, options = {})
-        commit('FC', money, post)
+        order = build_mark_for_capture_xml(money, authorization, options)
+        puts order
+        commit(order)
       end
       
       # Message Type
@@ -102,6 +101,7 @@ module ActiveMerchant #:nodoc:
       def refund(money, authorization, options ={})
         commit('R', money, post)
       end
+      
     
       private                       
             
@@ -175,10 +175,8 @@ module ActiveMerchant #:nodoc:
       
       def commit(order)
         response = parse(ssl_post(self.primary_test_url, order, POST_HEADERS.merge("Content-length" => order.size.to_s)))
-        Response.new(
-          success?(response),
-          message_from(response),
-          response
+        Response.new(success?(response), message_from(response), response,
+          {:authorization => response[:tx_ref_num]}
         )
       end
 
@@ -187,7 +185,11 @@ module ActiveMerchant #:nodoc:
       end
       
       def message_from(response)
-        response[:resp_msg]
+        success?(response) ? 'APPROVED' : response[:resp_msg]
+      end
+      
+      def ip_authentication?
+        @options[:ip_authentication] == true
       end
       
       def build_new_order_xml(action, money, parameters = {})
@@ -195,14 +197,14 @@ module ActiveMerchant #:nodoc:
         xml.instruct!(:xml, :version => '1.0', :encoding => 'UTF-8')
         xml.tag! :Request do
           xml.tag! :NewOrder do
-            xml.tag! :OrbitalConnectionUsername, @options[:login]
-            xml.tag! :OrbitalConnectionPassword, @options[:password]
+            xml.tag! :OrbitalConnectionUsername, @options[:login] unless ip_authentication?
+            xml.tag! :OrbitalConnectionPassword, @options[:password] unless ip_authentication?
             xml.tag! :IndustryType, "EC" # E-Commerce transaction 
             xml.tag! :MessageType, action
             xml.tag! :BIN, '000002' # PNS Tampa
             xml.tag! :MerchantID, @options[:merchant_id]
             xml.tag! :TerminalID, parameters[:terminal_id] || '001'
-            xml.tag! :CardBrand, ""
+            xml.tag! :CardBrand, "" # Leave blank
             
             yield xml
             
@@ -213,6 +215,25 @@ module ActiveMerchant #:nodoc:
         end
         xml.target!
       end
+      
+      def build_mark_for_capture_xml(money, authorization, parameters = {})
+        xml = Builder::XmlMarkup.new(:indent => 2)
+        xml.instruct!(:xml, :version => '1.0', :encoding => 'UTF-8')
+        xml.tag! :Request do
+          xml.tag! :MarkForCapture do
+            xml.tag! :OrbitalConnectionUsername, @options[:login] unless ip_authentication?
+            xml.tag! :OrbitalConnectionPassword, @options[:password] unless ip_authentication?
+            xml.tag! :OrderID, parameters[:order_id]
+            xml.tag! :Amount, money
+            xml.tag! :BIN, '000002' # PNS Tampa
+            xml.tag! :MerchantID, @options[:merchant_id]
+            xml.tag! :TerminalID, parameters[:terminal_id] || '001'
+            xml.tag! :TxRefNum, authorization
+          end
+        end
+        xml.target!
+      end
+      
       
     end
   end

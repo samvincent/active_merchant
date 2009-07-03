@@ -32,11 +32,11 @@ module ActiveMerchant #:nodoc:
       
       POST_HEADERS = {
         "MIME-Version" => "1.0",
-        "Content-Type" => "application/PTI45",
+        "Content-Type" => "Application/PTI46",
         "Content-transfer-encoding" => "text",
         "Request-number" => '1',
         "Document-type" => "Request",
-        "Interface-Version" => API_VERSION,
+        "Interface-Version" => "Ruby|ActiveMerchant|Proprietary Gateway"
       }
       
       class_inheritable_accessor :primary_test_url, :secondary_test_url, :primary_live_url, :secondary_live_url
@@ -125,13 +125,13 @@ module ActiveMerchant #:nodoc:
       def add_address(xml, creditcard, options)      
         if address = options[:billing_address] || options[:address]
           xml.tag! :AVSname, creditcard.name
-          xml.tag! :AVSaddress1, options[:address1]
-          xml.tag! :AVSaddress2, options[:address2]
-          xml.tag! :AVScity, options[:city]
-          xml.tag! :AVSstate, options[:state]
-          xml.tag! :AVSzip, options[:zip]
-          xml.tag! :AVScountryCode, options[:country]
-          xml.tag! :AVSphoneNum, options[:phone]
+          xml.tag! :AVSaddress1, address[:address1]
+          xml.tag! :AVSaddress2, address[:address2]
+          xml.tag! :AVScity, address[:city]
+          xml.tag! :AVSstate, address[:state]
+          xml.tag! :AVSzip, address[:zip]
+          xml.tag! :AVScountryCode, address[:country]
+          xml.tag! :AVSphoneNum, address[:phone]
         end
       end
 
@@ -150,7 +150,7 @@ module ActiveMerchant #:nodoc:
       end     
       
       def commit(order)
-        response = parse(ssl_post(self.primary_test_url, order, POST_HEADERS.merge("Content-Length" => order.bytesize.to_s)))
+        response = parse(ssl_post(self.primary_test_url, order, POST_HEADERS.merge("Content-length" => order.size.to_s)))
       end
 
       def message_from(response)
@@ -158,9 +158,9 @@ module ActiveMerchant #:nodoc:
       
       def build_new_order_xml(action, money, parameters = {})
         xml = Builder::XmlMarkup.new(:indent => 2)
-        xml.instruct!(:xml, :version => '1.1', :encoding => 'utf-8')
-        xml.tag! :request do
-          xml.tag! :new_order do
+        xml.instruct!(:xml, :version => '1.0', :encoding => 'UTF-8')
+        xml.tag! :Request do
+          xml.tag! :NewOrder do
             xml.tag! :OrbitalConnectionUsername, @options[:login]
             xml.tag! :OrbitalConnectionPassword, @options[:password]
             xml.tag! :IndustryType, "EC" # eCommerce transaction 
@@ -168,6 +168,7 @@ module ActiveMerchant #:nodoc:
             xml.tag! :BIN, '000002' # PNS, Salem is '000001'
             xml.tag! :MerchantID, @options[:merchant_id]
             xml.tag! :TerminalID, parameters[:terminal_id] || '001'
+            xml.tag! :CardBrand, ""
             
             yield xml
             

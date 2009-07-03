@@ -39,6 +39,8 @@ module ActiveMerchant #:nodoc:
         "Interface-Version" => "Ruby|ActiveMerchant|Proprietary Gateway"
       }
       
+      APPROVED = '00'
+      
       class_inheritable_accessor :primary_test_url, :secondary_test_url, :primary_live_url, :secondary_live_url
       
       self.primary_test_url = "https://orbitalvar1.paymentech.net/authorize"
@@ -81,9 +83,9 @@ module ActiveMerchant #:nodoc:
       def purchase(money, creditcard, options = {})
         order = build_new_order_xml('AC', money, options) do |xml|
           add_invoice(xml, options)
-          add_creditcard(xml, creditcard)        
+          add_creditcard(xml, creditcard, options[:currency])        
           add_address(xml, creditcard, options)   
-          add_customer_data(xml, options)
+          # add_customer_data(xml, options)
         end
         commit(order)
       end                       
@@ -124,14 +126,14 @@ module ActiveMerchant #:nodoc:
 
       def add_address(xml, creditcard, options)      
         if address = options[:billing_address] || options[:address]
-          xml.tag! :AVSname, creditcard.name
+          xml.tag! :AVSzip, address[:zip]
           xml.tag! :AVSaddress1, address[:address1]
           xml.tag! :AVSaddress2, address[:address2]
           xml.tag! :AVScity, address[:city]
           xml.tag! :AVSstate, address[:state]
-          xml.tag! :AVSzip, address[:zip]
-          xml.tag! :AVScountryCode, address[:country]
           xml.tag! :AVSphoneNum, address[:phone]
+          xml.tag! :AVSname, creditcard.name
+          xml.tag! :AVScountryCode, address[:country]
         end
       end
 
@@ -139,21 +141,53 @@ module ActiveMerchant #:nodoc:
         
       end
       
-      def add_creditcard(xml, creditcard)      
+      def add_creditcard(xml, creditcard, currency = nil)      
         xml.tag! :AccountNum, creditcard.number
         xml.tag! :Exp, creditcard.expiry_date.expiration.strftime("%m%y")
+        
+        currency = Country.find(currency || self.default_currency).code(:numeric).to_s
+        xml.tag! :CurrencyCode, currency
+        xml.tag! :CurrencyExponent, '2' # Will need updating to support currencies such as the Yen.
+        
         xml.tag! :CardSecVal,  creditcard.verification_value if creditcard.verification_value?
       end
       
       def parse(body)
-        puts body.inspect
+        response = {}
+        xml = REXML::Document.new(body)
+        root = REXML::XPath.first(xml, "//Response") ||
+               REXML::XPath.first(xml, "//ErrorResponse")
+        if root
+          root.elements.to_a.each do |node|
+            recurring_parse_element(response, node)
+          end
+        end
+        response
       end     
+      
+      def recurring_parse_element(response, node)
+        if node.has_elements?
+          node.elements.each{|e| recurring_parse_element(response, e) }
+        else
+          response[node.name.underscore.to_sym] = node.text
+        end
+      end
       
       def commit(order)
         response = parse(ssl_post(self.primary_test_url, order, POST_HEADERS.merge("Content-length" => order.size.to_s)))
+        Response.new(
+          success?(response),
+          message_from(response),
+          response
+        )
       end
 
+      def success?(response)
+        response[:resp_code] == APPROVED
+      end
+      
       def message_from(response)
+        response[:resp_msg]
       end
       
       def build_new_order_xml(action, money, parameters = {})
@@ -163,25 +197,20 @@ module ActiveMerchant #:nodoc:
           xml.tag! :NewOrder do
             xml.tag! :OrbitalConnectionUsername, @options[:login]
             xml.tag! :OrbitalConnectionPassword, @options[:password]
-            xml.tag! :IndustryType, "EC" # eCommerce transaction 
+            xml.tag! :IndustryType, "EC" # E-Commerce transaction 
             xml.tag! :MessageType, action
-            xml.tag! :BIN, '000002' # PNS, Salem is '000001'
+            xml.tag! :BIN, '000002' # PNS Tampa
             xml.tag! :MerchantID, @options[:merchant_id]
             xml.tag! :TerminalID, parameters[:terminal_id] || '001'
             xml.tag! :CardBrand, ""
             
             yield xml
             
-            currency = parameters[:currency] || self.default_currency
-            xml.tag! :CurrencyCode, Country.find(currency).code(:numeric).to_s
-            xml.tag! :CurrencyExponent, '2' # Will need updating to support currencies such as the Yen.
-            
             xml.tag! :Comments, parameters[:comments] if parameters[:comments]
             xml.tag! :OrderID, parameters[:order_id]
             xml.tag! :Amount, money
           end
         end
-        puts xml.target!
         xml.target!
       end
       

@@ -183,10 +183,25 @@ module ActiveMerchant #:nodoc:
       end
       
       def commit(order)
-        response = parse(ssl_post(self.primary_test_url, order, POST_HEADERS.merge("Content-length" => order.size.to_s)))
+        headers = POST_HEADERS.merge("Content-length" => order.size.to_s)
+        response = lambda {response = parse(ssl_post(remote_url, order, headers))}
+        
+        # Failover URL will be used in the event of a connection error
+        begin response.call rescue ConnectionError response.call end
+          
         Response.new(success?(response), message_from(response), response,
-          {:authorization => response[:tx_ref_num]}
+          {:authorization => response[:tx_ref_num],
+           :avs_result => {:code => response[:avs_resp_code]}
+          }
         )
+      end
+      
+      def remote_url
+        unless $! == ConnectionError
+          self.test? ? self.primary_test_url : self.primary_live_url
+        else
+          self.test? ? self.secondary_test_url : self.secondary_live_url
+        end
       end
 
       def success?(response)
@@ -225,7 +240,7 @@ module ActiveMerchant #:nodoc:
             xml.tag! :OrderID, parameters[:order_id]
             xml.tag! :Amount, money
             
-            # Append Transaction Reference Number at the end for Refun transactions
+            # Append Transaction Reference Number at the end for Refund transactions
             xml.tag! :TxRefNum, parameters[:authorization] if action == "R"
           end
         end

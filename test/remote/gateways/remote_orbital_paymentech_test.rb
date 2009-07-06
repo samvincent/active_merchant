@@ -37,20 +37,20 @@ class RemoteOrbitalGatewayTest < Test::Unit::TestCase
     assert capture = @gateway.capture(amount, auth.authorization, :order_id => '2')
     assert_success capture
   end
+  
+  def test_refund
+    amount = @amount
+    assert response = @gateway.purchase(amount, @credit_card, @options)
+    assert_success response
+    assert response.authorization
+    assert refund = @gateway.refund(amount, response.authorization, @options)
+    assert_success refund
+  end
 
   def test_failed_capture
     assert response = @gateway.capture(@amount, '')
     assert_failure response
-    assert_equal 'REPLACE WITH GATEWAY FAILURE MESSAGE', response.message
+    assert_equal 'Bad data error', response.message
   end
 
-  def test_invalid_login
-    gateway = OrbitalGateway.new(
-                :login => '',
-                :password => ''
-              )
-    assert response = gateway.purchase(@amount, @credit_card, @options)
-    assert_failure response
-    assert_equal 'REPLACE WITH FAILURE MESSAGE', response.message
-  end
 end

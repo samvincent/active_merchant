@@ -39,7 +39,7 @@ module ActiveMerchant #:nodoc:
         "Interface-Version" => "Ruby|ActiveMerchant|Proprietary Gateway"
       }
       
-      APPROVED = '00'
+      SUCCESS, APPROVED = '0', '00'
       
       class_inheritable_accessor :primary_test_url, :secondary_test_url, :primary_live_url, :secondary_live_url
       
@@ -91,15 +91,16 @@ module ActiveMerchant #:nodoc:
       
       # MFC - Mark For Capture
       def capture(money, authorization, options = {})
-        order = build_mark_for_capture_xml(money, authorization, options)
-        puts order
-        commit(order)
+        commit(build_mark_for_capture_xml(money, authorization, options))
       end
       
       # Message Type
       # R – Refund request
       def refund(money, authorization, options ={})
-        commit('R', money, post)
+        order = build_new_order_xml('R', money, options.merge(:authorization => authorization)) do |xml|
+          add_refund(xml, options[:currency])
+        end
+        commit(order)
       end
       
     
@@ -141,7 +142,7 @@ module ActiveMerchant #:nodoc:
         
       end
       
-      def add_creditcard(xml, creditcard, currency = nil)      
+      def add_creditcard(xml, creditcard, currency=nil)      
         xml.tag! :AccountNum, creditcard.number
         xml.tag! :Exp, creditcard.expiry_date.expiration.strftime("%m%y")
         
@@ -150,6 +151,14 @@ module ActiveMerchant #:nodoc:
         xml.tag! :CurrencyExponent, '2' # Will need updating to support currencies such as the Yen.
         
         xml.tag! :CardSecVal,  creditcard.verification_value if creditcard.verification_value?
+      end
+      
+      def add_refund(xml, currency=nil)
+        xml.tag! :AccountNum, nil
+        
+        currency = Country.find(currency || self.default_currency).code(:numeric).to_s
+        xml.tag! :CurrencyCode, currency
+        xml.tag! :CurrencyExponent, '2' # Will need updating to support currencies such as the Yen.
       end
       
       def parse(body)
@@ -181,11 +190,16 @@ module ActiveMerchant #:nodoc:
       end
 
       def success?(response)
-        response[:resp_code] == APPROVED
+        if response[:message_type] == "R"
+          response[:proc_status] == SUCCESS
+        else
+          response[:proc_status] == SUCCESS &&
+          response[:resp_code] == APPROVED 
+        end
       end
       
       def message_from(response)
-        success?(response) ? 'APPROVED' : response[:resp_msg]
+        success?(response) ? 'APPROVED' : response[:resp_msg] || response[:status_msg]
       end
       
       def ip_authentication?
@@ -203,14 +217,16 @@ module ActiveMerchant #:nodoc:
             xml.tag! :MessageType, action
             xml.tag! :BIN, '000002' # PNS Tampa
             xml.tag! :MerchantID, @options[:merchant_id]
-            xml.tag! :TerminalID, parameters[:terminal_id] || '001'
-            xml.tag! :CardBrand, "" # Leave blank
+            xml.tag! :TerminalID, parameters[:terminal_id] || '001'            
             
-            yield xml
+            yield xml if block_given?
             
             xml.tag! :Comments, parameters[:comments] if parameters[:comments]
             xml.tag! :OrderID, parameters[:order_id]
             xml.tag! :Amount, money
+            
+            # Append Transaction Reference Number at the end for Refun transactions
+            xml.tag! :TxRefNum, parameters[:authorization] if action == "R"
           end
         end
         xml.target!

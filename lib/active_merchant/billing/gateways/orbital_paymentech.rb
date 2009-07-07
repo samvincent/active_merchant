@@ -182,7 +182,7 @@ module ActiveMerchant #:nodoc:
         request = lambda {return parse(ssl_post(remote_url, order, headers))}
         
         # Failover URL will be used in the event of a connection error
-        begin puts remote_url; raise ConnectionError; rescue ConnectionError; puts "Hi"; puts remote_url;  end
+        begin response = request.call; rescue ConnectionError; retry end
           
         Response.new(success?(response), message_from(response), response,
           {:authorization => response[:tx_ref_num],

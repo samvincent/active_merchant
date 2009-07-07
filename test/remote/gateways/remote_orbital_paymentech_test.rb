@@ -86,7 +86,7 @@ class RemoteOrbitalGatewayTest < Test::Unit::TestCase
   
   # ==== Section A
   def test_auth_only_transactions
-    for suite in test_suite do
+    for suite in @test_suite do
       amount = suite[:amount]
       card = credit_card(@cards[suite[:card]], :verification_value => suite[:CVD])
       options = @options; options[:address].merge!(:zip => suite[:AVSzip])

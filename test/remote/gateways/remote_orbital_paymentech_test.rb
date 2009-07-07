@@ -40,8 +40,8 @@ class RemoteOrbitalGatewayTest < Test::Unit::TestCase
     assert_equal 'APPROVED', response.message
   end
 
+  # Amounts of x.01 will fail
   def test_unsuccessful_purchase
-    # Amounts of x.01 will fail
     assert response = @gateway.purchase(101, @declined_card, @options)
     assert_failure response
     assert_equal 'AUTH DECLINED                   12001', response.message
@@ -119,16 +119,30 @@ class RemoteOrbitalGatewayTest < Test::Unit::TestCase
   
   # ==== Section C
   def test_mark_for_capture_transactions    
-    for suite in @test_suite do
-      amount = suite[:amount]
-      card = credit_card(@cards[suite[:card]], :verification_value => suite[:CVD])
-      options = @options; options[:address].merge!(:zip => suite[:AVSzip])
-      assert auth_response = @gateway.authorize(amount, card, options)
+    [[:visa, '3000'],[:mc, '4100'],[:amex, '105500'],[:ds, '1000'],[:jcb, '2900']].each do |suite|
+      amount = suite[1]
+      card = credit_card(@cards[suite[0]])
+      assert auth_response = @gateway.authorize(amount, card, @options)
       assert capt_response = @gateway.capture(amount, auth_response.authorization)
       
       # Makes it easier to fill in cert sheet if you print these to the command line
-      # puts "Proccess Status => " + (capt_response.params["proc_status"] )
+      # puts "Auth/Resp Code => " + (auth_response.params["auth_code"] || auth_response.params["resp_code"])
       # puts "TxRefNum => " + capt_response.params["tx_ref_num"]
+      # puts
+    end
+  end
+  
+  # ==== Section D
+  def test_refund_transactions
+    [[:visa, '1200'],[:mc, '1100'],[:amex, '105500'],[:ds, '1000'],[:jcb, '2900']].each do |suite|
+      amount = suite[1]
+      card = credit_card(@cards[suite[0]])
+      assert purchase_response = @gateway.purchase(amount, card, @options)
+      assert refund_response = @gateway.refund(amount, purchase_response.authorization, @options)
+      
+      # Makes it easier to fill in cert sheet if you print these to the command line
+      # puts "Auth/Resp Code => " + (purchase_response.params["auth_code"] || purchase_response.params["resp_code"])
+      # puts "TxRefNum => " + refund_response.params["tx_ref_num"]
       # puts
     end
   end
@@ -140,8 +154,8 @@ class RemoteOrbitalGatewayTest < Test::Unit::TestCase
       assert void_response = @gateway.void(amount, auth_response.authorization, @options)
       
       # Makes it easier to fill in cert sheet if you print these to the command line
-      puts "TxRefNum => " + void_response.params["tx_ref_num"]
-      puts
+      # puts "TxRefNum => " + void_response.params["tx_ref_num"]
+      # puts
     end
   end
   

@@ -69,7 +69,6 @@ module ActiveMerchant #:nodoc:
       # A – Authorization request
       def authorize(money, creditcard, options = {})
         order = build_new_order_xml('A', money, options) do |xml|
-          add_invoice(xml, options)
           add_creditcard(xml, creditcard, options[:currency])        
           add_address(xml, creditcard, options)   
         end
@@ -79,8 +78,7 @@ module ActiveMerchant #:nodoc:
       # AC – Authorization and Capture
       def purchase(money, creditcard, options = {})
         order = build_new_order_xml('AC', money, options) do |xml|
-          add_invoice(xml, options)
-          add_creditcard(xml, creditcard, options[:currency])        
+          add_creditcard(xml, creditcard, options[:currency])
           add_address(xml, creditcard, options)   
         end
         commit(order)
@@ -99,7 +97,6 @@ module ActiveMerchant #:nodoc:
         commit(order)
       end
       
-      # ==== Void Request
       # setting money to nil will perform a full void
       def void(money, authorization, options = {})
         order = build_void_request_xml(money, authorization, options)

@@ -1,85 +1,42 @@
-require 'test/helper'
+require 'test/test_helper'
 
 class OrbitalGatewayTest < Test::Unit::TestCase
   def setup
     @gateway = OrbitalGateway.new(
       :login => 'login',
-      :password => 'password'
+      :password => 'password',
+      :merchant_id => 'merchant_id'
     )
   end  
   
-  def test_successful_authorization
-    @gateway.expects(:ssl_post).returns(successful_authorization_response)
+  def test_successful_purchase
+    @gateway.expects(:ssl_post).returns(successful_purchase_response)
     
-    assert response = @gateway.authorize('', credit_card)
+    assert response = @gateway.purchase('', credit_card)
     assert_instance_of Response, response
     assert_success response
-    assert_equal '00', response.authorization
+    assert_equal '4A5398CF9B87744GG84A1D30F2F2321C66249416', response.authorization
   end
-  
-  def test_authorization_responses
-    auth_responses.each do |expectation|
-      assert response = @gateway.authorize(expectation[:amount], credit_card)
-      assert_equal expectation[:auth_response], response.code
-      assert_equal expectation[:response], response.message
-    end
-  end
-  
+    
   def test_unauthenticated_response
+    @gateway.expects(:ssl_post).returns(failed_purcahse_response)
+    
+    assert response = @gateway.purchase('101', credit_card)
+    assert_instance_of Response, response
+    assert_failure response
+    assert_equal "AUTH DECLINED                   12001", response.message
   end
   
   private
   
   # Place raw successful response from gateway here
   def successful_purchase_response
+    %q{<?xml version="1.0" encoding="UTF-8"?><Response><NewOrderResp><IndustryType></IndustryType><MessageType>AC</MessageType><MerchantID>700000000000</MerchantID><TerminalID>001</TerminalID><CardBrand>VI</CardBrand><AccountNum>4111111111111111</AccountNum><OrderID>1</OrderID><TxRefNum>4A5398CF9B87744GG84A1D30F2F2321C66249416</TxRefNum><TxRefIdx>1</TxRefIdx><ProcStatus>0</ProcStatus><ApprovalStatus>1</ApprovalStatus><RespCode>00</RespCode><AVSRespCode>H </AVSRespCode><CVV2RespCode>N</CVV2RespCode><AuthCode>091922</AuthCode><RecurringAdviceCd></RecurringAdviceCd><CAVVRespCode></CAVVRespCode><StatusMsg>Approved</StatusMsg><RespMsg></RespMsg><HostRespCode>00</HostRespCode><HostAVSRespCode>Y</HostAVSRespCode><HostCVV2RespCode>N</HostCVV2RespCode><CustomerRefNum></CustomerRefNum><CustomerName></CustomerName><ProfileProcStatus></ProfileProcStatus><CustomerProfileMessage></CustomerProfileMessage><RespTime>144951</RespTime></NewOrderResp></Response>}
   end
   
   # Place raw failed response from gateway here
   def failed_purcahse_response
-  end
-
-  
-  def auth_responses
-    [{:amount => "1.00", :auth_response => "00", :response => "Approved"},
-    {:amount => "1.01", :auth_response => "05", :response => "Do Not Honor"},
-    {:amount => "1.02", :auth_response => "01", :response => "Call/Refer to Card Issuer"},
-    {:amount => "1.03", :auth_response => "04", :response => "Pickup"},
-    {:amount => "1.04", :auth_response => "19", :response => "Re-enter Transaction"},
-    {:amount => "1.05", :auth_response => "14", :response => "Invalid Credit Card Number"},
-    {:amount => "1.06", :auth_response => "74", :response => "Invalid Expiration Date"},
-    {:amount => "1.07", :auth_response => "L5", :response => "Invalid Issuer"},
-    {:amount => "1.10", :auth_response => "03", :response => "Invalid Merchant Number"},
-    {:amount => "1.12", :auth_response => "13", :response => "Bad Amount"},
-    {:amount => "1.13", :auth_response => "12", :response => "Invalid Transaction Type"},
-    {:amount => "1.16", :auth_response => "43", :response => "Lost / Stolen Card"},
-    {:amount => "1.21", :auth_response => "06", :response => "Other Error"}]
+    %q{<?xml version="1.0" encoding="UTF-8"?><Response><NewOrderResp><IndustryType></IndustryType><MessageType>AC</MessageType><MerchantID>700000000000</MerchantID><TerminalID>001</TerminalID><CardBrand>VI</CardBrand><AccountNum>4000300011112220</AccountNum><OrderID>1</OrderID><TxRefNum>4A5398CF9B87744GG84A1D30F2F2321C66249416</TxRefNum><TxRefIdx>0</TxRefIdx><ProcStatus>0</ProcStatus><ApprovalStatus>0</ApprovalStatus><RespCode>05</RespCode><AVSRespCode>G </AVSRespCode><CVV2RespCode>N</CVV2RespCode><AuthCode></AuthCode><RecurringAdviceCd></RecurringAdviceCd><CAVVRespCode></CAVVRespCode><StatusMsg>Do Not Honor</StatusMsg><RespMsg>AUTH DECLINED                   12001</RespMsg><HostRespCode>05</HostRespCode><HostAVSRespCode>N</HostAVSRespCode><HostCVV2RespCode>N</HostCVV2RespCode><CustomerRefNum></CustomerRefNum><CustomerName></CustomerName><ProfileProcStatus></ProfileProcStatus><CustomerProfileMessage></CustomerProfileMessage><RespTime>150214</RespTime></NewOrderResp></Response>}
   end
   
-  def avs_response
-    [{:avs_zip => "55555", :avs_response => "7", :response => "Address information unavailable"},
-    {:avs_zip => "66666", :avs_response => "H", :response => "Zip Match / Locale match"},
-    {:avs_zip => "77777", :avs_response => "X", :response => "Zip Match / Locale no match"},
-    {:avs_zip => "77777", :avs_response => "Z", :response => "Zip Match / Locale no match"}, 
-    {:avs_zip => "88888", :avs_response => "4", :response => "Issuer does not participate in AVS"}] 
-  end
-  
-  def cvv2_responses
-    [{:cvv2_value => "111", :cvv_response => "M", :response => "CVV Match"},
-    {:cvv2_value => "222", :cvv_response => "N", :response => "CVV No Match"},
-    {:cvv2_value => "333", :cvv_response => "P", :response => "Not processed"},
-    {:cvv2_value => "444", :cvv_response => "S", :response => "Should have been present"},
-    {:cvv2_value => "555", :cvv_response => "U", :response => "Unsupported by issuer"},
-    {:cvv2_value => "666", :cvv_response => "spaces", :response => "Not present when issuer"}]
-  end
-  
-  def card_numbers
-    [{"Visa" => '4012888888881'},
-    {"Visa Purchasing Card II" => '4055011111111111'},
-    {"MasterCard" => '5454545454545454'},
-    {"MasterCard Purchasing Card II" => '5405222222222226'},
-    {"American Express" => '371449635398431'}, 
-    {"Discover" => '6011000995500000'}, 
-    {"Diners" => '36438999960016'}, 
-    {"JCB" => '3566002020140006'}]
-  end
 end

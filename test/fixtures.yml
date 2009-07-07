@@ -108,6 +108,11 @@ ogone:
   password: PASSWORD
   signature: SIGNATURE
 
+orbital_gateway:
+  login: LOGIN
+  password: PASSWORD
+  merchant_id: MERCHANTID
+  
 payflow:
   login: LOGIN
   password: PASSWORD

@@ -74,7 +74,12 @@ class RemoteOrbitalGatewayTest < Test::Unit::TestCase
   end
   
   def test_connection_error_failover
-    assert false, "Make sure to write test for this!"
+    begin 
+      assert_equal @gateway.primary_test_url, @gateway.send(:remote_url)
+      raise ActiveMerchant::ConnectionError
+    rescue ActiveMerchant::ConnectionError
+      assert_equal @gateway.secondary_test_url, @gateway.send(:remote_url)
+    end
   end
 
   # == Certification Tests
@@ -105,18 +110,17 @@ class RemoteOrbitalGatewayTest < Test::Unit::TestCase
       assert response = @gateway.purchase(amount, card, options)
 
       # Makes it easier to fill in cert sheet if you print these to the command line
-      puts "Auth/Resp Code => " + (response.params["auth_code"] || response.params["resp_code"])
-      puts "AVS Resp => " + response.params["avs_resp_code"]
-      puts "CVD Resp => " + response.params["cvv2_resp_code"]
-      puts "TxRefNum => " + response.params["tx_ref_num"]
-      puts
+      # puts "Auth/Resp Code => " + (response.params["auth_code"] || response.params["resp_code"])
+      # puts "AVS Resp => " + response.params["avs_resp_code"]
+      # puts "CVD Resp => " + response.params["cvv2_resp_code"]
+      # puts "TxRefNum => " + response.params["tx_ref_num"]
+      # puts
     end
   end
   
   # ==== Section C
   def test_mark_for_capture_transactions    
     for suite in @test_suite do
-      puts @gateway.test?
       amount = suite[:amount]
       card = credit_card(@cards[suite[:card]], :verification_value => suite[:CVD])
       options = @options; options[:address].merge!(:zip => suite[:AVSzip])

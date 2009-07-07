@@ -66,7 +66,6 @@ module ActiveMerchant #:nodoc:
         super
       end
       
-      # Message Type
       # A – Authorization request
       def authorize(money, creditcard, options = {})
         order = build_new_order_xml('A', money, options) do |xml|
@@ -77,7 +76,6 @@ module ActiveMerchant #:nodoc:
         commit(order)
       end
       
-      # Message Type
       # AC – Authorization and Mark for Capture
       def purchase(money, creditcard, options = {})
         order = build_new_order_xml('AC', money, options) do |xml|
@@ -88,13 +86,11 @@ module ActiveMerchant #:nodoc:
         commit(order)
       end                       
       
-      
       # MFC - Mark For Capture
       def capture(money, authorization, options = {})
         commit(build_mark_for_capture_xml(money, authorization, options))
       end
       
-      # Message Type
       # R – Refund request
       def refund(money, authorization, options ={})
         order = build_new_order_xml('R', money, options.merge(:authorization => authorization)) do |xml|
@@ -102,7 +98,6 @@ module ActiveMerchant #:nodoc:
         end
         commit(order)
       end
-      
     
       private                       
             
@@ -184,10 +179,10 @@ module ActiveMerchant #:nodoc:
       
       def commit(order)
         headers = POST_HEADERS.merge("Content-length" => order.size.to_s)
-        response = lambda {response = parse(ssl_post(remote_url, order, headers))}
+        request = lambda {return parse(ssl_post(remote_url, order, headers))}
         
         # Failover URL will be used in the event of a connection error
-        begin response.call rescue ConnectionError response.call end
+        begin puts remote_url; raise ConnectionError; rescue ConnectionError; puts "Hi"; puts remote_url;  end
           
         Response.new(success?(response), message_from(response), response,
           {:authorization => response[:tx_ref_num],
@@ -197,7 +192,7 @@ module ActiveMerchant #:nodoc:
       end
       
       def remote_url
-        unless $! == ConnectionError
+        unless $!.class == ActiveMerchant::ConnectionError
           self.test? ? self.primary_test_url : self.primary_live_url
         else
           self.test? ? self.secondary_test_url : self.secondary_live_url

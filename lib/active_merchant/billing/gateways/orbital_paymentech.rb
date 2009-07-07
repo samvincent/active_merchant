@@ -76,7 +76,7 @@ module ActiveMerchant #:nodoc:
         commit(order)
       end
       
-      # AC – Authorization and Mark for Capture
+      # AC – Authorization and Capture
       def purchase(money, creditcard, options = {})
         order = build_new_order_xml('AC', money, options) do |xml|
           add_invoice(xml, options)
@@ -92,10 +92,17 @@ module ActiveMerchant #:nodoc:
       end
       
       # R – Refund request
-      def refund(money, authorization, options ={})
+      def refund(money, authorization, options = {})
         order = build_new_order_xml('R', money, options.merge(:authorization => authorization)) do |xml|
           add_refund(xml, options[:currency])
         end
+        commit(order)
+      end
+      
+      # ==== Void Request
+      # setting money to nil will perform a full void
+      def void(money, authorization, options = {})
+        order = build_void_request_xml(money, authorization, options)
         commit(order)
       end
     
@@ -117,7 +124,6 @@ module ActiveMerchant #:nodoc:
         xml.tag! :SDMerchantPhone, soft_desc.merchant_phone
         xml.tag! :SDMerchantURL, soft_desc.merchant_url
         xml.tag! :SDMerchantEmail, soft_desc.merchant_email
-        
       end
 
       def add_address(xml, creditcard, options)      
@@ -133,10 +139,6 @@ module ActiveMerchant #:nodoc:
         end
       end
 
-      def add_invoice(xml, options)
-        
-      end
-      
       def add_creditcard(xml, creditcard, currency=nil)      
         xml.tag! :AccountNum, creditcard.number
         xml.tag! :Exp, creditcard.expiry_date.expiration.strftime("%m%y")
@@ -186,6 +188,7 @@ module ActiveMerchant #:nodoc:
           
         Response.new(success?(response), message_from(response), response,
           {:authorization => response[:tx_ref_num],
+           :test => self.test?,
            :avs_result => {:code => response[:avs_resp_code]}
           }
         )
@@ -260,6 +263,24 @@ module ActiveMerchant #:nodoc:
         xml.target!
       end
       
+      def build_void_request_xml(money, authorization, parameters = {})
+        xml = Builder::XmlMarkup.new(:indent => 2)
+        xml.instruct!(:xml, :version => '1.0', :encoding => 'UTF-8')
+        xml.tag! :Request do
+          xml.tag! :Reversal do
+            xml.tag! :OrbitalConnectionUsername, @options[:login] unless ip_authentication?
+            xml.tag! :OrbitalConnectionPassword, @options[:password] unless ip_authentication?
+            xml.tag! :TxRefNum, authorization
+            xml.tag! :TxRefIdx, parameters[:transaction_index]
+            xml.tag! :AdjustedAmt, money
+            xml.tag! :OrderID, parameters[:order_id]
+            xml.tag! :BIN, '000002' # PNS Tampa
+            xml.tag! :MerchantID, @options[:merchant_id]
+            xml.tag! :TerminalID, parameters[:terminal_id] || '001'
+          end
+        end
+        xml.target!
+      end
       
     end
   end

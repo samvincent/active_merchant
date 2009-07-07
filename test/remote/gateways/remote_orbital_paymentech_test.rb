@@ -32,7 +32,6 @@ class RemoteOrbitalGatewayTest < Test::Unit::TestCase
       {:card => :ds,	 :AVSzip => 77777, :CVD =>	nil,  :amount => '1000'},
       {:card => :ds, 	 :AVSzip => 88888, :CVD =>	444,  :amount => '6303'},
       {:card => :jcb,  :AVSzip => 33333, :CVD =>	nil,  :amount => '2900'}]
-    
   end
   
   def test_successful_purchase
@@ -128,8 +127,20 @@ class RemoteOrbitalGatewayTest < Test::Unit::TestCase
       assert capt_response = @gateway.capture(amount, auth_response.authorization)
       
       # Makes it easier to fill in cert sheet if you print these to the command line
-      puts "Proccess Status => " + (capt_response.params["proc_status"] )
-      puts "TxRefNum => " + capt_response.params["tx_ref_num"]
+      # puts "Proccess Status => " + (capt_response.params["proc_status"] )
+      # puts "TxRefNum => " + capt_response.params["tx_ref_num"]
+      # puts
+    end
+  end
+  
+  # ==== Section F
+  def test_void_transactions
+    ['3000', '105500', '2900'].each do |amount|
+      assert auth_response = @gateway.authorize(amount, @credit_card, @options)
+      assert void_response = @gateway.void(amount, auth_response.authorization, @options)
+      
+      # Makes it easier to fill in cert sheet if you print these to the command line
+      puts "TxRefNum => " + void_response.params["tx_ref_num"]
       puts
     end
   end

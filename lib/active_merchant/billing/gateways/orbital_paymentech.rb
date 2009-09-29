@@ -46,8 +46,8 @@ module ActiveMerchant #:nodoc:
       self.primary_test_url = "https://orbitalvar1.paymentech.net/authorize"
       self.secondary_test_url = "https://orbitalvar2.paymentech.net/authorize"
       
-      self.primary_live_url = "orbital1.paymentech.net/authorize"
-      self.secondary_live_url = "orbital2.paymentech.net/authorize"
+      self.primary_live_url = "https://orbital1.paymentech.net/authorize"
+      self.secondary_live_url = "https://orbital2.paymentech.net/authorize"
       
       self.supported_countries = ["US", "CA"]
       self.default_currency = "CA"

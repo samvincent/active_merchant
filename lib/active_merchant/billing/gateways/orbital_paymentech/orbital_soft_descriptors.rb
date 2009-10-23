@@ -19,11 +19,12 @@ module ActiveMerchant #:nodoc:
       attr_accessor :merchant_name, :product_description, :merchant_city, :merchant_phone, :merchant_url, :merchant_email
       
       def initialize(options = {})
-        self.merchant_name = options[:merchant_name]
-        self.merchant_city = options[:merchant_city]
-        self.merchant_phone = options[:merchant_phone]
-        self.merchant_url = options[:merchant_url]
-        self.merchant_email = options[:merchant_email]
+        self.merchant_name       = options[:merchant_name]
+        self.product_description = options[:product_description]
+        self.merchant_city       = options[:merchant_city]
+        self.merchant_phone      = options[:merchant_phone]
+        self.merchant_url        = options[:merchant_url]
+        self.merchant_email      = options[:merchant_email]
       end
       
       def validate

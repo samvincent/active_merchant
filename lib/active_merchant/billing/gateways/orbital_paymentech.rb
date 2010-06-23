@@ -299,8 +299,7 @@ module ActiveMerchant #:nodoc:
       end
       
       def message_from(response)
-        # success?(response)  ? 
-        response[:resp_msg] || response[:status_msg] || response[:customer_profile_message] || 'APPROVED'
+        response[:resp_msg] || response[:status_msg] || response[:customer_profile_message]
       end
       
       def ip_authentication?
@@ -384,13 +383,13 @@ module ActiveMerchant #:nodoc:
             
             add_customer_address(xml, options)
             
-            xml.tag! :CustomerProfileAction, options[:customer_profile_action] # C, U, R, D - create, update, read, delete
+            xml.tag! :CustomerProfileAction, options[:customer_profile_action] # C, R, U, D
             xml.tag! :CustomerProfileOrderOverrideInd, options[:customer_profile_order_override_ind] || 'NO'
             xml.tag! :CustomerProfileFromOrderInd, options[:customer_ref_num] ? 'S' : 'A'
             xml.tag! :OrderDefaultDescription, options[:order_default_description][0..63] if options[:order_default_description]
             xml.tag! :OrderDefaultAmount, options[:order_default_amount] if options[:order_default_amount]
             xml.tag! :CustomerAccountType, 'CC' # Only credit card supported
-            xml.tag! :Status, options[:status] || 'A'
+            xml.tag! :Status, options[:status] || 'A' # Active
             xml.tag! :CCAccountNum, creditcard.number if creditcard
             xml.tag! :CCExpireDate, creditcard.expiry_date.expiration.strftime("%m%y") if creditcard
           end

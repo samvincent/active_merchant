@@ -5,7 +5,8 @@ class RemoteOrbitalGatewayTest < Test::Unit::TestCase
     Base.mode = :test
     @gateway = OrbitalPaymentechGateway.new(fixtures(:orbital_paymentech))
     
-    @print_certifcation_helpers = true
+    # Makes it easier to fill in cert sheet if you print these to the command line
+    # @print_certifcation_helpers = true
     
     @amount = 100
     @credit_card = credit_card('4111111111111111')

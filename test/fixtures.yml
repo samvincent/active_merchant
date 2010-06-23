@@ -108,7 +108,7 @@ ogone:
   password: PASSWORD
   signature: SIGNATURE
 
-orbital_gateway:
+orbital_paymentech:
   login: LOGIN
   password: PASSWORD
   merchant_id: MERCHANTID

@@ -27,8 +27,8 @@ module ActiveMerchant #:nodoc:
     # their Company Number [formerly called MA #] number so all MIDs or Divisions under that 
     # Company will automatically be affiliated.
     
-    class OrbitalGateway < Gateway
-      API_VERSION = "4.6"
+    class OrbitalPaymentechGateway < Gateway
+      API_VERSION = "4.9"
       
       POST_HEADERS = {
         "MIME-Version" => "1.0",
@@ -41,13 +41,20 @@ module ActiveMerchant #:nodoc:
       
       SUCCESS, APPROVED = '0', '00'
       
-      class_inheritable_accessor :primary_test_url, :secondary_test_url, :primary_live_url, :secondary_live_url
+      class_inheritable_accessor :primary_test_url, :secondary_test_url, :primary_live_url, :secondary_live_url, :customer_profiles
       
       self.primary_test_url = "https://orbitalvar1.paymentech.net/authorize"
       self.secondary_test_url = "https://orbitalvar2.paymentech.net/authorize"
       
       self.primary_live_url = "https://orbital1.paymentech.net/authorize"
       self.secondary_live_url = "https://orbital2.paymentech.net/authorize"
+      
+      # Orbital offers storing Customer Profiles which can later be used to
+      # process transactions using the :customer_ref_num.
+      #
+      # By default authorizations and purchases will create a customer profile.
+      # If your Chase MID doesn't support this feature, you can set customer_profiles to false
+      self.customer_profiles = true
       
       self.supported_countries = ["US", "CA"]
       self.default_currency = "CA"
@@ -67,19 +74,28 @@ module ActiveMerchant #:nodoc:
       end
       
       # A – Authorization request
-      def authorize(money, creditcard, options = {})
+      #
+      # note: To use an existing customer profile
+      #  @gateway.authorize(100, nil, {:order_id => '1', :customer_ref_num => '1000'}, true)
+      #
+      def authorize(money, creditcard, options = {}, profile_txn = false)
         order = build_new_order_xml('A', money, options) do |xml|
-          add_creditcard(xml, creditcard, options[:currency])        
-          add_address(xml, creditcard, options)   
+          add_creditcard(xml, creditcard, options[:currency]) unless creditcard.nil? and profile_txn
+          add_address(xml, creditcard, options)
+          add_customer_data(xml, options, profile_txn) if self.customer_profiles
         end
         commit(order)
       end
       
       # AC – Authorization and Capture
-      def purchase(money, creditcard, options = {})
+      #
+      # note: To use an existing customer profile, see authorize notes.
+      #
+      def purchase(money, creditcard, options = {}, profile_txn = false)
         order = build_new_order_xml('AC', money, options) do |xml|
-          add_creditcard(xml, creditcard, options[:currency])
+          add_creditcard(xml, creditcard, options[:currency]) unless creditcard.nil? and profile_txn
           add_address(xml, creditcard, options)   
+          add_customer_data(xml, options, profile_txn) if self.customer_profiles
         end
         commit(order)
       end                       
@@ -90,9 +106,17 @@ module ActiveMerchant #:nodoc:
       end
       
       # R – Refund request
-      def refund(money, authorization, options = {})
-        order = build_new_order_xml('R', money, options.merge(:authorization => authorization)) do |xml|
+      #
+      # note: currently supporting refunds via :tx_ref_num (authorization)
+      # and with profile transactions.
+      #
+      def refund(money, authorization, options = {}, profile_txn = false)
+        options.merge!(:authorization => authorization) if authorization
+        order = build_new_order_xml('R', money, options) do |xml|
           add_refund(xml, options[:currency])
+          if self.customer_profiles and profile_txn
+            xml.tag! :CustomerRefNum, options[:customer_ref_num] 
+          end
         end
         commit(order)
       end
@@ -102,15 +126,65 @@ module ActiveMerchant #:nodoc:
         order = build_void_request_xml(money, authorization, options)
         commit(order)
       end
-    
+      
+      # ==== Customer Profiles
+      # :customer_ref_num should be set unless your happy with Orbital providing one
+      #
+      # :customer_profile_order_override_ind can be set to map
+      # the CustomerRefNum to OrderID or Comments. Defaults to 'NO' - no mapping
+      #
+      #   'NO' - No mapping to order data
+      #   'OI' - Use <CustomerRefNum> for <OrderID> 
+      #   'OD' - Use <CustomerRefNum> for <Comments>
+      #   'OA' - Use <CustomerRefNum> for <OrderID> and <Comments>
+      # 
+      # :order_default_description can be set optionally. 64 char max.
+      #
+      # :order_default_amount can be set optionally. integer as cents.
+      #
+      # :status defaults to Active
+      #
+      #   'A' - Active
+      #   'I' - Inactive
+      #   'MS'	- Manual Suspend
+      
+      def add_customer_profile(creditcard, options = {})
+        options.merge!(:customer_profile_action => 'C')
+        order = build_customer_request_xml(creditcard, options)
+        commit(order)
+      end
+      
+      def update_customer_profile(creditcard, options = {})
+        options.merge!(:customer_profile_action => 'U')
+        order = build_customer_request_xml(creditcard, options)
+        commit(order)
+      end
+      
+      def retrieve_customer_profile(customer_ref_num)
+        options = {:customer_profile_action => 'R', :customer_ref_num => customer_ref_num}
+        order = build_customer_request_xml(nil, options)
+        commit(order)
+      end
+      
+      def delete_customer_profile(customer_ref_num)
+        options = {:customer_profile_action => 'D', :customer_ref_num => customer_ref_num}
+        order = build_customer_request_xml(nil, options)
+        commit(order)
+      end
+      
       private                       
             
-      def add_customer_data(xml, options)
-        if options[:customer_ref_num]
-          xml.tag! :CustomerProfileFromOrderInd, 'S'
+      def add_customer_data(xml, options, profile_txn = false)
+        if profile_txn
           xml.tag! :CustomerRefNum, options[:customer_ref_num]
         else
-          xml.tag! :CustomerProfileFromOrderInd, 'A'
+          if options[:customer_ref_num]
+            xml.tag! :CustomerProfileFromOrderInd, 'S'
+            xml.tag! :CustomerRefNum, options[:customer_ref_num]
+          else
+            xml.tag! :CustomerProfileFromOrderInd, 'A'
+          end
+          xml.tag! :CustomerProfileOrderOverrideInd, options[:customer_profile_order_override_ind] || 'NO'
         end
       end
       
@@ -123,7 +197,7 @@ module ActiveMerchant #:nodoc:
         xml.tag! :SDMerchantEmail, soft_desc.merchant_email
       end
 
-      def add_address(xml, creditcard, options)      
+      def add_address(xml, creditcard, options)
         if address = options[:billing_address] || options[:address]
           xml.tag! :AVSzip, address[:zip]
           xml.tag! :AVSaddress1, address[:address1]
@@ -133,6 +207,19 @@ module ActiveMerchant #:nodoc:
           xml.tag! :AVSphoneNum, address[:phone] ? address[:phone].scan(/\d/).to_s : nil
           xml.tag! :AVSname, creditcard.name
           xml.tag! :AVScountryCode, address[:country]
+        end
+      end
+      
+      # For Profile requests
+      def add_customer_address(xml, options)
+        if address = options[:billing_address] || options[:address]
+          xml.tag! :CustomerAddress1, address[:address1]
+          xml.tag! :CustomerAddress2, address[:address2]
+          xml.tag! :CustomerCity, address[:city]
+          xml.tag! :CustomerState, address[:state]
+          xml.tag! :CustomerZIP, address[:zip]
+          xml.tag! :CustomerPhone, address[:phone] ? address[:phone].scan(/\d/).to_s : nil
+          xml.tag! :CustomerCountryCode, address[:country]
         end
       end
 
@@ -182,7 +269,7 @@ module ActiveMerchant #:nodoc:
         
         # Failover URL will be used in the event of a connection error
         begin response = request.call; rescue ConnectionError; retry end
-        
+                
         Response.new(success?(response), message_from(response), response,
           {:authorization => response[:tx_ref_num],
            :test => self.test?,
@@ -203,6 +290,8 @@ module ActiveMerchant #:nodoc:
       def success?(response)
         if response[:message_type] == "R"
           response[:proc_status] == SUCCESS
+        elsif response[:customer_profile_action]
+          response[:profile_proc_status] == SUCCESS
         else
           response[:proc_status] == SUCCESS &&
           response[:resp_code] == APPROVED 
@@ -210,7 +299,8 @@ module ActiveMerchant #:nodoc:
       end
       
       def message_from(response)
-        success?(response) ? 'APPROVED' : response[:resp_msg] || response[:status_msg]
+        # success?(response)  ? 
+        response[:resp_msg] || response[:status_msg] || response[:customer_profile_message] || 'APPROVED'
       end
       
       def ip_authentication?
@@ -237,7 +327,7 @@ module ActiveMerchant #:nodoc:
             xml.tag! :Amount, money
             
             # Append Transaction Reference Number at the end for Refund transactions
-            xml.tag! :TxRefNum, parameters[:authorization] if action == "R"
+            xml.tag! :TxRefNum, parameters[:authorization] if (parameters[:authorization] and action == "R")
           end
         end
         xml.target!
@@ -275,6 +365,34 @@ module ActiveMerchant #:nodoc:
             xml.tag! :BIN, '000002' # PNS Tampa
             xml.tag! :MerchantID, @options[:merchant_id]
             xml.tag! :TerminalID, parameters[:terminal_id] || '001'
+          end
+        end
+        xml.target!
+      end
+      
+      def build_customer_request_xml(creditcard, options = {})
+        xml = Builder::XmlMarkup.new(:indent => 2)
+        xml.instruct!(:xml, :version => '1.0', :encoding => 'UTF-8')
+        xml.tag! :Request do
+          xml.tag! :Profile do
+            xml.tag! :OrbitalConnectionUsername, @options[:login] unless ip_authentication?
+            xml.tag! :OrbitalConnectionPassword, @options[:password] unless ip_authentication?
+            xml.tag! :CustomerBin, '000002' # PNS Tampa
+            xml.tag! :CustomerMerchantID, @options[:merchant_id]
+            xml.tag! :CustomerName, creditcard.name if creditcard
+            xml.tag! :CustomerRefNum, options[:customer_ref_num] if options[:customer_ref_num]
+            
+            add_customer_address(xml, options)
+            
+            xml.tag! :CustomerProfileAction, options[:customer_profile_action] # C, U, R, D - create, update, read, delete
+            xml.tag! :CustomerProfileOrderOverrideInd, options[:customer_profile_order_override_ind] || 'NO'
+            xml.tag! :CustomerProfileFromOrderInd, options[:customer_ref_num] ? 'S' : 'A'
+            xml.tag! :OrderDefaultDescription, options[:order_default_description][0..63] if options[:order_default_description]
+            xml.tag! :OrderDefaultAmount, options[:order_default_amount] if options[:order_default_amount]
+            xml.tag! :CustomerAccountType, 'CC' # Only credit card supported
+            xml.tag! :Status, options[:status] || 'A'
+            xml.tag! :CCAccountNum, creditcard.number if creditcard
+            xml.tag! :CCExpireDate, creditcard.expiry_date.expiration.strftime("%m%y") if creditcard
           end
         end
         xml.target!

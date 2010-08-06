@@ -385,11 +385,19 @@ module ActiveMerchant #:nodoc:
             
             xml.tag! :CustomerProfileAction, options[:customer_profile_action] # C, R, U, D
             xml.tag! :CustomerProfileOrderOverrideInd, options[:customer_profile_order_override_ind] || 'NO'
-            xml.tag! :CustomerProfileFromOrderInd, options[:customer_ref_num] ? 'S' : 'A'
+            
+            if options[:customer_profile_action] == 'C'
+              xml.tag! :CustomerProfileFromOrderInd, options[:customer_ref_num] ? 'S' : 'A'
+            end
+            
             xml.tag! :OrderDefaultDescription, options[:order_default_description][0..63] if options[:order_default_description]
             xml.tag! :OrderDefaultAmount, options[:order_default_amount] if options[:order_default_amount]
-            xml.tag! :CustomerAccountType, 'CC' # Only credit card supported
-            xml.tag! :Status, options[:status] || 'A' # Active
+            
+            if ['C', 'U'].include? options[:customer_profile_action]
+              xml.tag! :CustomerAccountType, 'CC' # Only credit card supported
+              xml.tag! :Status, options[:status] || 'A' # Active
+            end
+            
             xml.tag! :CCAccountNum, creditcard.number if creditcard
             xml.tag! :CCExpireDate, creditcard.expiry_date.expiration.strftime("%m%y") if creditcard
           end

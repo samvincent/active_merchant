@@ -335,11 +335,23 @@ module ActiveMerchant #:nodoc:
             xml.tag! :OrderID, parameters[:order_id]
             xml.tag! :Amount, money
             
+            set_recurring_ind(xml, parameters)
+            
             # Append Transaction Reference Number at the end for Refund transactions
             xml.tag! :TxRefNum, parameters[:authorization] if (parameters[:authorization] and action == "R")
           end
         end
         xml.target!
+      end
+      
+      # For Canadian transactions on PNS Tampa on New Order
+      # RF - First Recurring Transaction
+      # RS - Subsequent Recurring Transactions
+      def set_recurring_ind(xml, parameters)
+        if parameters[:recurring_ind]
+          raise "RecurringInd must be set to either \"RF\" or \"RS\"" unless %w(RF RS).include?(parameters[:recurring_ind])
+          xml.tag! :RecurringInd, parameters[:recurring_ind] 
+        end
       end
       
       def build_mark_for_capture_xml(money, authorization, parameters = {})

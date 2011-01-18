@@ -42,6 +42,12 @@ class OrbitalPaymentechTest < Test::Unit::TestCase
     assert_success response
     assert_equal 'Profile Request Processed', response.message
   end
+  
+  def test_recurring_order_ind
+    @gateway.stubs(:commit).with {|order| @order = order}
+    @gateway.authorize(0, credit_card, @options.merge(:recurring_ind => "RF"))
+    assert_equal(Hash.from_xml(@order)['Request']['NewOrder']['RecurringInd'], "RF")
+  end
     
   private
   

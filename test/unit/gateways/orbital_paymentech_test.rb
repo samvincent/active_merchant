@@ -48,7 +48,13 @@ class OrbitalPaymentechTest < Test::Unit::TestCase
     @gateway.authorize(0, credit_card, @options.merge(:recurring_ind => "RF"))
     assert_equal(Hash.from_xml(@order)['Request']['NewOrder']['RecurringInd'], "RF")
   end
-    
+  
+  def test_response_includes_order
+    @gateway.expects(:ssl_post).returns(successful_purchase_response)
+    response = @gateway.purchase('', credit_card)
+    assert response.order.is_a? String
+  end
+  
   private
   
   # Place raw successful response from gateway here

@@ -46,13 +46,27 @@ class OrbitalPaymentechTest < Test::Unit::TestCase
   def test_recurring_order_ind
     @gateway.stubs(:commit).with {|order| @order = order}
     @gateway.authorize(0, credit_card, @options.merge(:recurring_ind => "RF"))
-    assert_equal(Hash.from_xml(@order)['Request']['NewOrder']['RecurringInd'], "RF")
+    assert_equal "RF", Hash.from_xml(@order)['Request']['NewOrder']['RecurringInd']
   end
   
   def test_response_includes_order
     @gateway.expects(:ssl_post).returns(successful_purchase_response)
     response = @gateway.purchase('', credit_card)
     assert response.order.is_a? String
+  end
+  
+  def test_soft_descriptors
+    @gateway.stubs(:commit).with {|order| @order = order}
+    soft_descriptors = OrbitalSoftDescriptors.new(
+      :merchant_name       => "Acme Corp.",
+      :product_description => "Thing",
+      :merchant_city       => "Vancouver")
+    assert soft_descriptors.valid?, soft_descriptors.errors
+    @gateway.authorize(0, credit_card, @options.merge(:soft_descriptors => soft_descriptors))
+    args = Hash.from_xml(@order)['Request']['NewOrder']
+    assert_equal "Acme Corp.", args['SDMerchantName']
+    assert_equal "Thing",      args['SDProductDescription']
+    assert_equal "Vancouver",  args['SDMerchantCity']
   end
   
   private

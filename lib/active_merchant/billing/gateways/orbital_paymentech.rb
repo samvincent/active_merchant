@@ -191,10 +191,11 @@ module ActiveMerchant #:nodoc:
       def add_soft_descriptors(xml, soft_desc)
         xml.tag! :SDMerchantName, soft_desc.merchant_name
         xml.tag! :SDProductDescription, soft_desc.product_description
-        xml.tag! :SDMerchantCity, soft_desc.merchant_city
-        xml.tag! :SDMerchantPhone, soft_desc.merchant_phone
-        xml.tag! :SDMerchantURL, soft_desc.merchant_url
-        xml.tag! :SDMerchantEmail, soft_desc.merchant_email
+        # Never send more than one of the following
+        xml.tag!(:SDMerchantCity, soft_desc.merchant_city)   ||
+        xml.tag!(:SDMerchantPhone, soft_desc.merchant_phone) ||
+        xml.tag!(:SDMerchantURL, soft_desc.merchant_url)     ||
+        xml.tag!(:SDMerchantEmail, soft_desc.merchant_email)
       end
 
       def add_address(xml, creditcard, options)
@@ -341,6 +342,11 @@ module ActiveMerchant #:nodoc:
             
             # Append Transaction Reference Number at the end for Refund transactions
             xml.tag! :TxRefNum, parameters[:authorization] if (parameters[:authorization] and action == "R")
+            
+            # Set Soft Descriptors at the end
+            if parameters[:soft_descriptors].is_a?(OrbitalSoftDescriptors)
+              add_soft_descriptors(xml, parameters[:soft_descriptors]) 
+            end
           end
         end
         xml.target!

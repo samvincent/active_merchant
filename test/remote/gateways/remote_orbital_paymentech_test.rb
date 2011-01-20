@@ -80,6 +80,15 @@ class RemoteOrbitalGatewayTest < Test::Unit::TestCase
     assert_equal 'Bad data error', response.message
   end
   
+  def test_soft_descriptor_acceptance
+    soft_descriptors = OrbitalSoftDescriptors.new(
+      :merchant_name       => "Acme Corp.",
+      :product_description => "Thing",
+      :merchant_phone      => "555-555-5555")
+    response = @gateway.purchase(@amount, @credit_card, @options.merge(:soft_descriptors => soft_descriptors))
+    assert_success response
+  end
+  
   def test_connection_error_failover
     begin 
       assert_equal @gateway.primary_test_url, @gateway.send(:remote_url)

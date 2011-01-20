@@ -189,13 +189,15 @@ module ActiveMerchant #:nodoc:
       end
       
       def add_soft_descriptors(xml, soft_desc)
-        xml.tag! :SDMerchantName, soft_desc.merchant_name
-        xml.tag! :SDProductDescription, soft_desc.product_description
+        raise "Must pass a OrbitalSoftDescriptors object" unless soft_desc.is_a?(OrbitalSoftDescriptors)
+        raise soft_desc.errors.full_messages.join(" ")    unless soft_desc.valid?
+        xml.tag! :SDMerchantName, soft_desc.merchant_name             if soft_desc.merchant_name
+        xml.tag! :SDProductDescription, soft_desc.product_description if soft_desc.product_description
         # Never send more than one of the following
-        xml.tag!(:SDMerchantCity, soft_desc.merchant_city)   ||
-        xml.tag!(:SDMerchantPhone, soft_desc.merchant_phone) ||
-        xml.tag!(:SDMerchantURL, soft_desc.merchant_url)     ||
-        xml.tag!(:SDMerchantEmail, soft_desc.merchant_email)
+        xml.tag!(:SDMerchantCity, soft_desc.merchant_city)            if soft_desc.merchant_city
+        xml.tag!(:SDMerchantPhone, soft_desc.merchant_phone)          if soft_desc.merchant_phone
+        xml.tag!(:SDMerchantURL, soft_desc.merchant_url)              if soft_desc.merchant_url
+        xml.tag!(:SDMerchantEmail, soft_desc.merchant_email)          if soft_desc.merchant_email
       end
 
       def add_address(xml, creditcard, options)

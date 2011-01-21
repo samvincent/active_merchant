@@ -340,11 +340,11 @@ module ActiveMerchant #:nodoc:
             xml.tag! :Amount, money
             xml.tag! :Comments, parameters[:comments] if parameters[:comments]
             
-            set_recurring_ind(xml, parameters)
-            
             if parameters[:soft_descriptors].is_a?(OrbitalSoftDescriptors)
               add_soft_descriptors(xml, parameters[:soft_descriptors]) 
             end
+            
+            set_recurring_ind(xml, parameters)
             
             # Append Transaction Reference Number at the end for Refund transactions
             xml.tag! :TxRefNum, parameters[:authorization] if (parameters[:authorization] and action == "R")

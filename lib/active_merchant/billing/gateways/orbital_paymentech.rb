@@ -336,9 +336,9 @@ module ActiveMerchant #:nodoc:
             
             yield xml if block_given?
             
-            xml.tag! :Comments, parameters[:comments] if parameters[:comments]
             xml.tag! :OrderID, parameters[:order_id]
             xml.tag! :Amount, money
+            xml.tag! :Comments, parameters[:comments] if parameters[:comments]
             
             set_recurring_ind(xml, parameters)
             

@@ -71,6 +71,10 @@ beanstream_interac:
   user: username
   password: password
 
+beanstream_rest:
+  merchant_id: merchant id
+  passcode: passcode
+
 bit_pay:
   api_key: 'rKrahSl7WRrYeKRUhGzbvW3nBzo0jG4FPaL8uPYaoPk'
 

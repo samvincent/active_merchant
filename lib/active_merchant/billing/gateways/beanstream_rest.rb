@@ -57,10 +57,11 @@ module ActiveMerchant #:nodoc:
 
       def headers
         headers = {}
+        headers['Content-Type'] = "application/json"
         headers['Authorization'] = \
           'Passcode ' + Base64.strict_encode64(
             @options[:merchant_id].to_s + ':' + @options[:passcode].to_s
-          )
+          ).force_encoding("utf-8")
 
         headers
       end
@@ -68,6 +69,7 @@ module ActiveMerchant #:nodoc:
       def authorize(money, token, options = {})
         post = {}
         add_amount(post, money)
+        add_order_number(post, options)
         add_token(post, token, options.merge(capture: false))
         add_customer_ip(post, options)
         add_language_and_comments(post, options)
@@ -79,6 +81,7 @@ module ActiveMerchant #:nodoc:
       def purchase(money, token, options = {})
         post = {}
         add_amount(post, money)
+        add_order_number(post, options)
         add_token(post, token, options.merge(capture: true))
         add_customer_ip(post, options)
         add_language_and_comments(post, options)
@@ -89,6 +92,11 @@ module ActiveMerchant #:nodoc:
 
       def add_amount(post, money)
         post[:amount] = money
+      end
+
+      def add_order_number(post, options)
+        raise "Unique :order_id required" unless options[:order_id]
+        post[:order_number] = options[:order_id]
       end
 
       def add_address(post, options)
@@ -110,7 +118,7 @@ module ActiveMerchant #:nodoc:
       def add_token(post, token, options)
         post[:payment_method] = "token"
         post[:token] = {
-          capture: options[:capture],
+          complete: options[:capture],
           code: token,
           name: options[:billing_address][:name]
         }
@@ -155,7 +163,7 @@ module ActiveMerchant #:nodoc:
       end
 
       def post_data(params)
-        params
+        params.to_json
       end
 
       def post(data, use_profile_api=nil)
@@ -173,7 +181,8 @@ module ActiveMerchant #:nodoc:
       end
 
       def parse(body)
-        {}
+        # {}
+        body
       end
 
     end

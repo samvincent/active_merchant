@@ -13,10 +13,10 @@ class RemoteBeanstreamRestTest < Test::Unit::TestCase
     @amex                = credit_card('371100001000131', {:verification_value => 1234})
     @declined_amex       = credit_card('342400001000180')
 
-    @amount = 1500
+    @amount = 15
 
     @options = {
-      :order_id => generate_unique_id,
+      :order_id => generate_unique_id[0,30], # 30 char limit
       :billing_address => {
         :name => 'Georg Jetson',
         :phone => '555-555-5555',
@@ -33,7 +33,8 @@ class RemoteBeanstreamRestTest < Test::Unit::TestCase
   end
 
   def test_successful_visa_purchase
-    assert response = @gateway.purchase(@amount, @visa, @options)
+    response = @gateway.purchase(@amount, generate_single_use_token(@visa), @options)
+    assert response = @gateway.purchase(@amount, 'token', @options)
     assert_success response
     assert_false response.authorization.blank?
     assert_equal "Approved", response.message
@@ -89,4 +90,24 @@ class RemoteBeanstreamRestTest < Test::Unit::TestCase
     assert_match %r{Missing or invalid adjustment id.}, response.message
   end
 
+  private
+
+  def generate_single_use_token(credit_card)
+    uri = URI.parse('https://www.beanstream.com/scripts/tokenization/tokens')
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+    http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+
+    request = Net::HTTP::Post.new(uri.path)
+    request.content_type = "application/json"
+    request.body = {
+      "number"       => credit_card.number,
+      "expiry_month" => "01",
+      "expiry_year"  => (Time.now.year + 1) % 100,
+      "cvd"          => credit_card.verification_value,
+    }.to_json
+
+    response = http.request(request)
+    JSON.parse(response.body)["token"]
+  end
 end

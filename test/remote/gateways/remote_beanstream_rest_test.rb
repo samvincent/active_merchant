@@ -33,61 +33,42 @@ class RemoteBeanstreamRestTest < Test::Unit::TestCase
   end
 
   def test_successful_visa_purchase
-    response = @gateway.purchase(@amount, generate_single_use_token(@visa), @options)
-    assert response = @gateway.purchase(@amount, 'token', @options)
+    assert response = @gateway.purchase(@amount, generate_single_use_token(@visa), @options)
     assert_success response
     assert_false response.authorization.blank?
     assert_equal "Approved", response.message
   end
 
   def test_unsuccessful_visa_purchase
-    assert response = @gateway.purchase(@amount, @declined_visa, @options)
+    assert response = @gateway.purchase(@amount, generate_single_use_token(@declined_visa), @options)
     assert_failure response
     assert_equal 'DECLINE', response.message
   end
 
   def test_successful_mastercard_purchase
-    assert response = @gateway.purchase(@amount, @mastercard, @options)
+    assert response = @gateway.purchase(@amount, generate_single_use_token(@mastercard), @options)
     assert_success response
     assert_false response.authorization.blank?
     assert_equal "Approved", response.message
   end
 
   def test_unsuccessful_mastercard_purchase
-    assert response = @gateway.purchase(@amount, @declined_mastercard, @options)
+    assert response = @gateway.purchase(@amount, generate_single_use_token(@declined_mastercard), @options)
     assert_failure response
     assert_equal 'DECLINE', response.message
   end
 
   def test_successful_amex_purchase
-    assert response = @gateway.purchase(@amount, @amex, @options)
+    assert response = @gateway.purchase(@amount, generate_single_use_token(@amex), @options)
     assert_success response
     assert_false response.authorization.blank?
     assert_equal "Approved", response.message
   end
 
   def test_unsuccessful_amex_purchase
-    assert response = @gateway.purchase(@amount, @declined_amex, @options)
+    assert response = @gateway.purchase(@amount, generate_single_use_token(@declined_amex), @options)
     assert_failure response
     assert_equal 'DECLINE', response.message
-  end
-
-  def test_authorize_and_capture
-    assert auth = @gateway.authorize(@amount, @visa, @options)
-    assert_success auth
-    assert_equal "Approved", auth.message
-    assert_false auth.authorization.blank?
-
-    assert capture = @gateway.capture(@amount, auth.authorization)
-    assert_success capture
-    assert_false capture.authorization.blank?
-  end
-
-  def test_failed_capture
-    assert response = @gateway.capture(@amount, '')
-    assert_failure response
-    assert_no_match %r{You are not authorized}, response.message, "You need to enable username/password validation"
-    assert_match %r{Missing or invalid adjustment id.}, response.message
   end
 
   private

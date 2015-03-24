@@ -55,6 +55,9 @@ module ActiveMerchant #:nodoc:
       # The name of the gateway
       self.display_name = 'Beanstream'
 
+      APPROVED = '1'
+      DECLINED = '0'
+
       def headers
         headers = {}
         headers['Content-Type'] = "application/json"
@@ -120,7 +123,7 @@ module ActiveMerchant #:nodoc:
         post[:token] = {
           complete: options[:capture],
           code: token,
-          name: options[:billing_address][:name]
+          name: options[:billing_address] ? options[:billing_address][:name] : nil
         }
       end
 
@@ -149,13 +152,15 @@ module ActiveMerchant #:nodoc:
       end
 
       def success?(response)
-        true
+        response["approved"] == APPROVED
       end
 
       def message_from(response)
+        response["message"]
       end
 
       def authorization_from(response)
+        response['auth_code']
       end
 
       def commit(params)
@@ -169,10 +174,10 @@ module ActiveMerchant #:nodoc:
       def post(data, use_profile_api=nil)
         response = parse(ssl_post(self.live_url, data, headers))
         build_response(success?(response), message_from(response), response,
-          :test => test? || response[:authCode] == "TEST",
+          :test => test? || response['auth_code'] == "TEST",
           :authorization => authorization_from(response),
-          # :cvv_result => CVD_CODES[response[:cvdId]],
-          # :avs_result => {:code => (AVS_CODES.include? response[:avsId]) ? AVS_CODES[response[:avsId]] : response[:avsId] }
+          :cvv_result => (response['card'] && response['card']['cvd_match'] == 1),
+          :avs_result => {code: response['card'] && response['card']['address_match'] == 1}
         )
       end
 
@@ -181,8 +186,7 @@ module ActiveMerchant #:nodoc:
       end
 
       def parse(body)
-        # {}
-        body
+        JSON.parse(body)
       end
 
     end

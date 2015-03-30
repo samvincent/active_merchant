@@ -1,3 +1,5 @@
+require 'test_helper'
+
 class RemoteBeanstreamRestTest < Test::Unit::TestCase
 
   def setup
@@ -13,7 +15,7 @@ class RemoteBeanstreamRestTest < Test::Unit::TestCase
     @amex                = credit_card('371100001000131', {:verification_value => 1234})
     @declined_amex       = credit_card('342400001000180')
 
-    @amount = 15
+    @amount = '15.00'
 
     @options = {
       :order_id => generate_unique_id[0,30], # 30 char limit
@@ -68,7 +70,8 @@ class RemoteBeanstreamRestTest < Test::Unit::TestCase
   def test_unsuccessful_amex_purchase
     assert response = @gateway.purchase(@amount, generate_single_use_token(@declined_amex), @options)
     assert_failure response
-    assert_equal 'DECLINE', response.message
+    assert_equal 'Missing or invalid payment information - Please validate all required payment information.', response.message
+    assert_equal 314, response.error_code
   end
 
   private

@@ -93,6 +93,8 @@ module ActiveMerchant #:nodoc:
         commit(post)
       end
 
+      protected
+
       def add_amount(post, money)
         post[:amount] = money
       end
@@ -116,7 +118,6 @@ module ActiveMerchant #:nodoc:
 
         post[:billing] = address
       end
-
 
       def add_token(post, token, options)
         post[:payment_method] = "token"
@@ -163,6 +164,10 @@ module ActiveMerchant #:nodoc:
         response['auth_code']
       end
 
+      def code_from(response)
+        response['code']
+      end
+
       def commit(params)
         post(post_data(params))
       end
@@ -172,10 +177,11 @@ module ActiveMerchant #:nodoc:
       end
 
       def post(data, use_profile_api=nil)
-        response = parse(ssl_post(self.live_url, data, headers))
+        response = parse(raw_ssl_request(:post, self.live_url, data, headers))
         build_response(success?(response), message_from(response), response,
           :test => test? || response['auth_code'] == "TEST",
           :authorization => authorization_from(response),
+          :error_code => code_from(response),
           :cvv_result => (response['card'] && response['card']['cvd_match'] == 1),
           :avs_result => {code: response['card'] && response['card']['address_match'] == 1}
         )
@@ -185,8 +191,8 @@ module ActiveMerchant #:nodoc:
         Response.new(*args)
       end
 
-      def parse(body)
-        JSON.parse(body)
+      def parse(response)
+        JSON.parse(response.body)
       end
 
     end

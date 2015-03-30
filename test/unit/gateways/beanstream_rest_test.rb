@@ -34,15 +34,15 @@ class BeanstreamRestTest < Test::Unit::TestCase
   end
 
   def test_successful_purchase
-    @gateway.expects(:ssl_post).returns(successful_purchase_response)
+    @gateway.expects(:raw_ssl_request).returns(successful_purchase_response)
 
     assert response = @gateway.purchase(@amount, @token, @options)
     assert_success response
-    assert_equal '10000028;15.00;P', response.authorization
+    assert_equal 'TEST', response.authorization
   end
 
   def test_unsuccessful_request
-    @gateway.expects(:ssl_post).returns(unsuccessful_purchase_response)
+    @gateway.expects(:raw_ssl_request).returns(unsuccessful_purchase_response)
 
     assert response = @gateway.purchase(@amount, @token, @options)
     assert_failure response
@@ -51,11 +51,11 @@ class BeanstreamRestTest < Test::Unit::TestCase
   private
 
   def successful_purchase_response
-    ""
+    OpenStruct.new body: %[{"id":"10000000","approved":"1","message_id":"1","message":"Approved","auth_code":"TEST","created":"2015-03-30T13:25:23","order_number":"c4ca5d458310cab35cc354fd98e52c","type":"P","payment_method":"CC","card":{"card_type":"AM","last_four":"0131","cvd_match":0,"address_match":0,"postal_result":0},"links":[{"rel":"void","href":"https://www.beanstream.com/api/v1/payments/10000000/void","method":"POST"},{"rel":"return","href":"https://www.beanstream.com/api/v1/payments/10000000/returns","method":"POST"}]}]
   end
 
   def unsuccessful_purchase_response
-    ""
+    OpenStruct.new body: %[{"code":7,"category":1,"message":"DECLINE","reference":null}]
   end
 
 end

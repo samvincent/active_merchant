@@ -18,15 +18,9 @@ class RemoteBeanstreamTest < Test::Unit::TestCase
     @declined_mastercard = credit_card('5100000020002000')
 
     @amex                = credit_card('371100001000131', {:verification_value => 1234})
-    @declined_amex       = credit_card('342400001000180')
+    @declined_amex       = credit_card('342400001000180', {:verification_value => 1234})
 
-    # Canadian EFT
-    @check               = check(
-                             :institution_number => '001',
-                             :transit_number     => '26729'
-                           )
-
-    @amount = 1500
+    @amount = '15.00'
 
     @options = {
       :order_id => generate_unique_id,

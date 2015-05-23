@@ -106,15 +106,15 @@ module ActiveMerchant #:nodoc:
 
       def add_address(post, options)
         address = {}
-        address[:name]           = options[:billing_address][:name]
-        address[:address_line_1] = options[:billing_address][:address1]
-        address[:address_line_2] = options[:billing_address][:address2]
-        address[:city]           = options[:billing_address][:city]
-        address[:province]       = options[:billing_address][:state]
-        address[:country]        = options[:billing_address][:country]
-        address[:postal_code]    = options[:billing_address][:zip]
-        address[:phone_number]   = options[:billing_address][:phone]
-        address[:email_address]  = options[:email]
+        address[:name]           = options[:billing_address] ? options[:billing_address][:name] : nil
+        address[:address_line_1] = options[:billing_address] ? options[:billing_address][:address1] : nil
+        address[:address_line_2] = options[:billing_address] ? options[:billing_address][:address2] : nil
+        address[:city]           = options[:billing_address] ? options[:billing_address][:city] : nil
+        address[:province]       = options[:billing_address] ? options[:billing_address][:state] : nil
+        address[:country]        = options[:billing_address] ? options[:billing_address][:country] : nil
+        address[:postal_code]    = options[:billing_address] ? options[:billing_address][:zip] : nil
+        address[:phone_number]   = options[:billing_address] ? options[:billing_address][:phone] : nil
+        address[:email_address]  = options[:billing_address] ? options[:email] : nil
 
         post[:billing] = address
       end
